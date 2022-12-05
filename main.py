@@ -7,7 +7,7 @@ from modules.utils import *
 from rich.console import Console
 from rich.panel import Panel
 from rich.padding import Padding
-from joblib import Parallel, delayed
+from multiprocessing import Pool
 import time
 
 
@@ -53,22 +53,37 @@ if __name__ == "__main__":
     namespaces = client_obj.get_all_namespaces()
 
     # progression / threads
-    with console_obj.status("[bold green]Working on namespaces...") as status:
-        Parallel(n_jobs=6, prefer="threads")(
-            delayed(client_obj.search_string)(namespace, find_string, is_verbose) for namespace in namespaces.items)
+    # with console_obj.status("Working on...Pods") as status_pod:
+    with Pool() as p:
+        all_pods = p.map(client_obj.search_string_in_pod, namespaces.items, find_string, is_verbose)
 
-    if output_format == "simple":
-        df_to_pod = create_dataframe(client_obj.pods, "simple")
-        df_to_secret = create_dataframe(client_obj.secrets, "simple")
-    else:
-        df_to_pod = create_dataframe(client_obj.pods, "detailed")
-        df_to_secret = create_dataframe(client_obj.secrets, "detailed")
+        # all_pods = Parallel(n_jobs=6)(
+        #     delayed(client_obj.search_string_in_pod)(namespace, find_string, is_verbose)
+        #     for namespace in namespaces.items)
 
-    console_obj.print(dataframe_to_table(df_to_pod, create_table()))
-    console_obj.print(dataframe_to_table(df_to_secret, create_table()))
+    # with console_obj.status("Working on...Secrets") as status_secrets:
+    #     all_secrets = Parallel(n_jobs=6, prefer="threads")(
+    #         delayed(client_obj.search_string_in_secret)(namespace, find_string, is_verbose)
+    #         for namespace in namespaces.items)
 
-    console_obj.print(Padding("----", (1, 0, 0, 0)))
-    console_obj.print(Panel.fit("[yellow bold].:: THE END ::."))
+    print("pods")
+    print(all_pods)
+    # print("/n")
+    # print("secrets")
+    # print(all_secrets)
+
+    # if output_format == "simple":
+    #     df_to_pod = create_dataframe(client_obj.pods, "simple")
+    #     df_to_secret = create_dataframe(client_obj.secrets, "simple")
+    # else:
+    #     df_to_pod = create_dataframe(client_obj.pods, "detailed")
+    #     df_to_secret = create_dataframe(client_obj.secrets, "detailed")
+    #
+    # console_obj.print(dataframe_to_table(df_to_pod, create_table()))
+    # console_obj.print(dataframe_to_table(df_to_secret, create_table()))
+    #
+    # console_obj.print(Padding("----", (1, 0, 0, 0)))
+    # console_obj.print(Panel.fit("[yellow bold].:: THE END ::."))
 
     end = time.time()
 

@@ -9,22 +9,6 @@ from multiprocessing import Manager
 class Client:
     """ Client """
 
-    @property
-    def pods(self):
-        return self._pods
-
-    @pods.setter
-    def pods(self, value):
-        self._pods = value
-
-    @property
-    def secrets(self):
-        return self._secrets
-
-    @secrets.setter
-    def secrets(self, values):
-        self._secrets = values
-
     def __init__(self):
         """ init """
         manager = Manager()
