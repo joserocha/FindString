@@ -1,123 +1,118 @@
 """
-    client.py
+    _client.py
 """
 from base64 import b64decode as b64
 from modules.server import Cluster
-from multiprocessing import Manager
 
 
-class Client:
-    """ Client """
+cluster_obj = Cluster()
 
-    @property
-    def pods(self):
-        return self._pods
 
-    @pods.setter
-    def pods(self, value):
-        self._pods = value
+def get_all_namespaces():
+    """ get_all_namespaces """
+    return cluster_obj.get_all_namespaces()
 
-    @property
-    def secrets(self):
-        return self._secrets
 
-    @secrets.setter
-    def secrets(self, values):
-        self._secrets = values
+def search_pod(verbose, string, n):
+    """ search_pod """
 
-    def __init__(self):
-        """ init """
-        manager = Manager()
-        self.cluster_obj = Cluster()
-        self.pods = manager.list()
-        self.secrets = manager.list()
+    # create an empty list
+    p_list = []
 
-    def get_cluster_name(self):
-        """ get_cluster_name """
-        return self.cluster_obj.get_cluster_config()
+    # verbose
+    if verbose:
+        print(f"[{n.metadata.name}] - pod - started!")
 
-    def get_all_namespaces(self):
-        """ get_all_namespaces """
-        return self.cluster_obj.get_all_namespaces()
+    # retrieve all pods from a namespace
+    p_namespace = cluster_obj.get_pods_by_namespace(n.metadata.name)
 
-    def search_string_in_pod(self, namespace, search_text, verbose):
-        """ search_string_in_pod """
-
-        # create an empty list
-        pod_data = []
-
-        # verbose
+    # return if namespace hasn't pods
+    if p_namespace is None:
         if verbose:
-            print(f"[{namespace.metadata.name}] - pod - started!")
+            print(f"[{n.metadata.name}] - pod - failed retrieving pods.")
+            print(f"[{n.metadata.name}] - done!")
+        return -1
 
-        # retrieve all pods per namespace
-        pods_namespace = self.cluster_obj.get_pods_by_namespace(namespace.metadata.name)
+    # iterate through pods
+    for p in p_namespace.items:
 
-        # check for pods iterate through it try to execute
-        # "env" command and search for a specific string
-        if pods_namespace is None:
+        # if pod isn't running try another one
+        if p.status.phase != "Running":
             if verbose:
-                print(f"\t[{namespace.metadata.name}] - pod - failed retrieving pods.")
-        else:
-            for pod in pods_namespace.items:
-                if pod.status.phase == "Running":
-                    response = self.cluster_obj.exec_command_pod(pod.metadata.name, namespace.metadata.name)
+                print(f"[{n.metadata.name}] - pod - pod not ok. Trying another one.")
+            continue
 
-                    if response is None:
-                        if verbose:
-                            print(f"\t[{namespace.metadata.name}] - pod - failed scanning pod.")
-                        continue
+        # execute env command
+        # if response is None, try another pod
+        response = cluster_obj.exec_command_pod(p.metadata.name, n.metadata.name)
+        if response is None:
+            if verbose:
+                print(f"[{n.metadata.name}] - pod - failed scanning pod.")
+            continue
 
-                    lines = response.split("\n")
-                    for line in lines:
-                        if line.find(search_text) > -1:
-                            pod_data.append([namespace.metadata.name.lower(),
-                                             "Pod",
-                                             f"name: {pod.metadata.name.lower()}",
-                                             f"{line}"])
+        # iterate through elements trying
+        # to match the desired string
+        break_out_flag = False
+        for i, item in enumerate(response.split("\n")):
+            if item.find(string) > -1:
+                p_list.append([n.metadata.name.lower(),
+                               "Pod",
+                               f"name: {p.metadata.name.lower()}",
+                               f"{item}"])
+
+            # after read all elements
+            # we can exit the main loop
+            if (i + 1) == len(response.split("\n")):
+                if verbose:
+                    print(f"[{n.metadata.name}] - pod - success scanning pod.")
+                    print(f"[{n.metadata.name}] - done!")
+                break_out_flag = True
                 break
+        if break_out_flag:
+            break
 
-            # verbose
-            if verbose:
-                print(f"\t[{namespace.metadata.name}] - pod - success scanning pod.")
+    return p_list
 
-            return pod_data
 
-    def search_string_in_secret(self, namespace, search_text, verbose):
-        """ search_string_in_secret """
+def search_secret(verbose, string, n):
+    """ search_secret """
 
-        # create an empty list
-        secret_data = []
+    # create an empty list
+    s_list = []
 
+    if verbose:
+        print(f"[{n.metadata.name}] - secrets - started!")
+
+    # retrieve all secrets from a namespace
+    s_namespace = cluster_obj.get_secrets_by_namespace(n.metadata.name)
+
+    # return if namespace hasn't secrets
+    if s_namespace is None:
         if verbose:
-            print(f"[{namespace.metadata.name}] - secrets - started!")
+            print(f"[{n.metadata.name}] - secrets - failed retrieving secrets.")
+        return -1
 
-        # retrieve all secrets per namespace
-        secrets_namespace = self.cluster_obj.get_secrets_by_namespace(namespace.metadata.name)
+    for s in s_namespace.items:
+        if s.type == "Opaque" and s.data is not None:
+            for key, value in s.data.items():
+                k = key.lower() if key != "" else "emp_k"
 
-        # check for secrets iterate through it get keys
-        # and values and search for a specific string
-        if secrets_namespace is None:
-            if verbose:
-                print(f"\t[{namespace.metadata.name}] - secrets - failed retrieving secrets.")
-        else:
-            for secret in secrets_namespace.items:
-                if secret.type == "Opaque" and secret.data is not None:
-                    for key, value in secret.data.items():
-                        try:
-                            k = key.lower() if key != "" else "emp_k"
-                            v = b64(value).decode("utf-8").lower() if value != "" else "emp_v"
+                try:
+                    v = b64(value).decode("utf-8").lower() if value != "" else "emp_v"
 
-                            if k.find(search_text) > -1 or v.find(search_text) > -1:
-                                secret_data.append([namespace.metadata.name.lower(),
-                                                    "Secret",
-                                                    f"type: {secret.type.lower()}, "
-                                                    f"name: {secret.metadata.name.lower()}",
-                                                    f"{k}={v}"])
-                        except UnicodeDecodeError:
-                            continue
-            if verbose:
-                print(f"\t[{namespace.metadata.name}] - secrets - success reading secrets.")
+                    if k.find(string) > -1 or v.find(string) > -1:
+                        s_list.append([n.metadata.name.lower(),
+                                       "Secret",
+                                       f"type: {s.type.lower()}, "
+                                       f"name: {s.metadata.name.lower()}",
+                                       f"{k}={v}"])
+                except UnicodeDecodeError:
+                    if verbose:
+                        print(f"[{n.metadata.name}] - secrets - failed decoding value of key {k}.")
+                    continue
 
-        if verbose:
-            print(f"[{namespace.metadata.name}] - done!")
+    if verbose:
+        print(f"[{n.metadata.name}] - secrets - success reading secrets.")
+        print(f"[{n.metadata.name}] - done!")
+
+    return s_list

@@ -15,8 +15,8 @@ class Cluster:
         self.api = client.CoreV1Api()
 
     @staticmethod
-    def get_cluster_config():
-        """ get_cluster_name """
+    def get_cluster_name():
+        """ get_cluster_config """
         ctx = config.list_kube_config_contexts()[1]
         return ctx["context"]["cluster"].split("_")[::-1][0]
 

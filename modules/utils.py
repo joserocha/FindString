@@ -8,6 +8,7 @@ import pandas as pd
 
 
 pd.set_option("display.max_rows", None)
+pd.set_option("display.width", 1000)
 
 
 def dataframe_to_table(data_frame: pd.DataFrame,
