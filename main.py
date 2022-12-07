@@ -14,9 +14,10 @@ import modules.client as client
 import modules.utils as utils
 
 
-# add command line arguments
+# create the parser
 args = argparse.ArgumentParser()
 
+# add the arguments
 args.add_argument("--find",
                   "-f",
                   help="string to be find it",
@@ -31,17 +32,21 @@ args.add_argument("--verbose",
                   help="increase output verbosity",
                   action="store_true")
 
+# execute the parse_args() method
 params = args.parse_args()
 
+
 if __name__ == "__main__":
-    # init
+    # retrieve arguments
     find_string = getattr(params, "find").lower()
     output_format = getattr(params, "output").lower()
-    is_verbose = getattr(params, "verbose")
+    is_verb = getattr(params, "verbose")
+
+    # init
     cluster_name = Cluster.get_cluster_name()
+    console_obj = Console()
 
     # header
-    console_obj = Console()
     console_obj.print(Panel.fit("[yellow bold].: SEARCH FOR STRING IN KUBERNETES CLUSTER"))
     console_obj.print(Padding(f"----"
                               f"\nLooking for: {find_string}"
@@ -52,23 +57,31 @@ if __name__ == "__main__":
     # get all namespaces
     namespaces = client.get_all_namespaces()
 
-    # parallel pods
+    # status of the current task
     with console_obj.status("[bold green]Working on pods...") as p_status:
-        sleep(0.5)
-        with Pool(16) as p:
-            p_result = p.map(partial(client.search_pod, is_verbose, find_string), namespaces.items)
 
-    # parallel secrets
-    with console_obj.status("[bold green]Working on secrets...") as s_status:
-        sleep(0.5)
+        # trick to make status text readable when verbose True
+        sleep(0.5) if is_verb else sleep(0)
+
+        # search in the pods for the desired term, in parallel mode
         with Pool(16) as p:
-            s_result = p.map(partial(client.search_secret, is_verbose, find_string), namespaces.items)
+            p_result = p.map(partial(client.search_pod, is_verb, find_string), namespaces.items)
+
+    # status of the current task
+    with console_obj.status("[bold green]Working on secrets...") as s_status:
+
+        # trick to make status text readable when verbose True
+        sleep(0.5) if is_verb else sleep(0)
+
+        # search in the secrets for the desired term, in parallel mode
+        with Pool(16) as p:
+            s_result = p.map(partial(client.search_secret, is_verb, find_string), namespaces.items)
 
     # removing empty elements and flatten the nested list
     p_result_filtered = list(itertools.chain(*(filter(None, p_result))))
     s_result_filtered = list(itertools.chain(*(filter(None, s_result))))
 
-    # convert panda's dataframe to rich's table
+    # convert panda's dataframe to rich's table format
     if output_format == "simple":
         df_to_pod = utils.create_dataframe(p_result_filtered, "simple")
         df_to_secret = utils.create_dataframe(s_result_filtered, "simple")
@@ -76,6 +89,7 @@ if __name__ == "__main__":
         df_to_pod = utils.create_dataframe(p_result_filtered, "detailed")
         df_to_secret = utils.create_dataframe(s_result_filtered, "detailed")
 
+    # print the result
     console_obj.print(utils.dataframe_to_table(df_to_pod, utils.create_table()))
     console_obj.print(utils.dataframe_to_table(df_to_secret, utils.create_table()))
 

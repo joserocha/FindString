@@ -19,7 +19,6 @@ def search_pod(verbose, string, n):
     # create an empty list
     p_list = []
 
-    # verbose
     if verbose:
         print(f"[{n.metadata.name}] - pod - started!")
 
@@ -92,6 +91,7 @@ def search_secret(verbose, string, n):
             print(f"[{n.metadata.name}] - secrets - failed retrieving secrets.")
         return -1
 
+    # iterate trough secrets
     for s in s_namespace.items:
         if s.type == "Opaque" and s.data is not None:
             for key, value in s.data.items():

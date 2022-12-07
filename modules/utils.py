@@ -7,10 +7,12 @@ from rich import box
 import pandas as pd
 
 
+# set panda's options
 pd.set_option("display.max_rows", None)
 pd.set_option("display.width", 1000)
 
 
+# convert from panda's dataframe object to rich's table object
 def dataframe_to_table(data_frame: pd.DataFrame,
                        rich_table: Table,
                        show_index: bool = False,
@@ -23,7 +25,7 @@ def dataframe_to_table(data_frame: pd.DataFrame,
     for column in data_frame.columns:
         rich_table.add_column(str(column))
 
-    for index, value_list in enumerate(data_frame.values.tolist()):
+    for index, value_list in enumerate(data_frame.values):
         row = [str(index)] if show_index else []
         row += [str(x) for x in value_list]
         rich_table.add_row(*row)
@@ -31,6 +33,7 @@ def dataframe_to_table(data_frame: pd.DataFrame,
     return rich_table
 
 
+# create a panda's dataframe object
 def create_dataframe(data, output):
     df = pd.DataFrame(data, columns=["Namespace", "Kubernete's Object", "Resource Scanned", "Details"])
 
@@ -41,6 +44,7 @@ def create_dataframe(data, output):
         return df
 
 
+# create a rich's table object
 def create_table():
     t = Table(show_header=True, header_style="bold yellow", show_lines=True)
     t.row_styles = ["none", "light_cyan1"]
