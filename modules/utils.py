@@ -37,10 +37,10 @@ def dataframe_to_table(data_frame: pd.DataFrame,
 def create_dataframe(data, output):
     df = pd.DataFrame(data, columns=["Namespace", "Kubernete's Object", "Resource Scanned", "Details"])
 
-    # Wrap text in fourth column if text
-    # is bigger than the regular space
-    ts = round(get_terminal_size().columns / 2)
-    df["Details"] = df["Details"].str.wrap(ts)
+    # set a fixed equal size for every column
+    for column in df:
+        column_size = round(get_terminal_size().columns / 4) + 10
+        df[column] = df[column].str.wrap(column_size)
 
     if output == "simple":
         distinct_df = df[["Namespace", "Kubernete's Object", "Resource Scanned"]]
