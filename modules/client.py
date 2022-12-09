@@ -103,7 +103,7 @@ def search_secret(verbose, string, n):
                     if k.find(string) > -1 or v.find(string) > -1:
                         s_list.append([n.metadata.name.lower(),
                                        "Secret",
-                                       f"type: {s.type.lower()}, "
+                                       f"type: {s.type.lower()}, \n"
                                        f"name: {s.metadata.name.lower()}",
                                        f"{k}={v}"])
                 except UnicodeDecodeError:

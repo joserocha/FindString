@@ -5,11 +5,11 @@ from typing import Optional
 from rich.table import Table
 from rich import box
 import pandas as pd
+from os import get_terminal_size
 
 
 # set panda's options
 pd.set_option("display.max_rows", None)
-pd.set_option("display.width", 1000)
 
 
 # convert from panda's dataframe object to rich's table object
@@ -36,6 +36,11 @@ def dataframe_to_table(data_frame: pd.DataFrame,
 # create a panda's dataframe object
 def create_dataframe(data, output):
     df = pd.DataFrame(data, columns=["Namespace", "Kubernete's Object", "Resource Scanned", "Details"])
+
+    # Wrap text in fourth column if text
+    # is bigger than the regular space
+    ts = round(get_terminal_size().columns / 2)
+    df["Details"] = df["Details"].str.wrap(ts)
 
     if output == "simple":
         distinct_df = df[["Namespace", "Kubernete's Object", "Resource Scanned"]]
